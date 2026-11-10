@@ -1,0 +1,14 @@
+# BxMesh's gateway reaches the pod through this.
+apiVersion: v1
+kind: Service
+metadata:
+  name: flasher
+  labels:
+    {{- include "flasher.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "flasher.selector" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

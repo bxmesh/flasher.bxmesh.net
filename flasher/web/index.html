@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Repeater flasher</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header>
+  <h1>MeshCore repeater flasher</h1>
+  <p class="lead">Puts MeshCore's repeater firmware on a ProMicro nRF52840 (a "faketec") and sets it up, over its USB cable, from this page.</p>
+</header>
+
+<div id="unsupported" class="banner" role="alert" hidden></div>
+
+<main>
+<section id="s-board">
+  <h2><span class="n">1</span> The board</h2>
+  <p>Plug in one board with a data USB cable, then choose it. Close any other program that might be using it.</p>
+  <div class="row">
+    <button id="connect" type="button">Choose the board</button>
+    <span id="board-status" class="status" aria-live="polite">No board chosen yet.</span>
+  </div>
+</section>
+
+<section id="s-firmware">
+  <h2><span class="n">2</span> Firmware</h2>
+  <label for="fw">Version</label>
+  <select id="fw" disabled><option>Loading the list…</option></select>
+  <p id="fw-note" class="hint" aria-live="polite"></p>
+</section>
+
+<section id="s-repeater">
+  <h2><span class="n">3</span> Name and location</h2>
+  <div class="grid3">
+    <div class="field wide">
+      <label for="name">Name</label>
+      <input id="name" autocomplete="off" spellcheck="false" maxlength="31" placeholder="e.g. BHS Mt Panorama">
+      <p class="err" id="name-err"></p>
+    </div>
+    <div class="field">
+      <label for="lat">Latitude</label>
+      <input id="lat" inputmode="decimal" autocomplete="off" placeholder="-33.4194">
+      <p class="err" id="lat-err"></p>
+    </div>
+    <div class="field">
+      <label for="lon">Longitude</label>
+      <input id="lon" inputmode="decimal" autocomplete="off" placeholder="149.5775">
+      <p class="err" id="lon-err"></p>
+    </div>
+  </div>
+</section>
+
+<section id="s-radio">
+  <h2><span class="n">4</span> Radio</h2>
+  <label for="preset">Settings</label>
+  <select id="preset"></select>
+  <div class="grid4">
+    <div class="field"><label for="freq">Frequency (MHz)</label><input id="freq" inputmode="decimal" autocomplete="off"></div>
+    <div class="field"><label for="bw">Bandwidth (kHz)</label><input id="bw" inputmode="decimal" autocomplete="off"></div>
+    <div class="field"><label for="sf">Spreading factor</label>
+      <select id="sf"><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
+    <div class="field"><label for="cr">Coding rate</label>
+      <select id="cr"><option value="5">4/5</option><option value="6">4/6</option><option value="7">4/7</option><option value="8">4/8</option></select></div>
+  </div>
+  <p class="err" id="radio-err"></p>
+  <p class="hint">Changing any value switches to Custom. The radio settings take effect when the board restarts, which this page does at the end.</p>
+</section>
+
+<section id="s-regions">
+  <h2><span class="n">5</span> Regions</h2>
+  <p class="hint">Ticking a region ticks the ones it's in; unticking one unticks the ones inside it. Flood is allowed in each.</p>
+  <div id="regions" class="checks"></div>
+  <div class="grid2">
+    <div class="field"><label for="def-region">Default region</label><select id="def-region"></select></div>
+    <div class="field"><label for="home-region">Home region</label><select id="home-region"></select></div>
+  </div>
+  <p class="err" id="regions-err"></p>
+</section>
+
+<section id="s-admins">
+  <h2><span class="n">6</span> Additional admin identities</h2>
+  <p>These are public keys given admin on every repeater you flash: for example a monitoring system (like a MeshCore monitor's identities) or other admins. They're kept only in this browser; nothing is sent to the server.</p>
+  <p class="hint">Untick one to leave it off this repeater. Anyone else already on the repeater's admin list is removed, so the ticked ones are the only admin identities. (Logging in with the admin password still works.)</p>
+  <ul id="admins" class="admins"></ul>
+  <div class="add-admin">
+    <div class="field"><label for="admin-label">Label</label><input id="admin-label" autocomplete="off" maxlength="60" placeholder="e.g. Monitor 1"></div>
+    <div class="field key"><label for="admin-key">Public key</label><input id="admin-key" autocomplete="off" spellcheck="false" maxlength="80" placeholder="64 characters, 0-9 and a-f"></div>
+    <button id="admin-add" type="button" class="secondary">Add</button>
+  </div>
+  <p class="err" id="admin-err"></p>
+  <p class="hint" id="admin-storage"></p>
+</section>
+
+<section id="s-passwords">
+  <h2><span class="n">7</span> Passwords</h2>
+  <div class="grid2">
+    <div class="field"><label for="pw1">Admin password</label><input id="pw1" type="password" autocomplete="new-password" maxlength="15"></div>
+    <div class="field"><label for="pw2">Admin password again</label><input id="pw2" type="password" autocomplete="new-password" maxlength="15"></div>
+  </div>
+  <p class="err" id="pw-err"></p>
+  <p class="hint">Sent only to the board, over USB. It isn't saved, shown or sent anywhere else. Up to 15 characters.</p>
+  <p>Guest password: <strong id="guest-pw"></strong></p>
+</section>
+
+<section id="s-go">
+  <h2><span class="n">8</span> Check and start</h2>
+  <dl id="summary" class="summary"></dl>
+  <div class="row">
+    <button id="go-flash" type="button" disabled>Flash and set up</button>
+    <button id="go-config" type="button" class="secondary" disabled>Set up only (no flashing)</button>
+  </div>
+  <p id="go-why" class="why" aria-live="polite"></p>
+</section>
+
+<section id="s-progress" aria-live="polite">
+  <h2>Progress</h2>
+  <ol id="steps" class="steps"></ol>
+  <div id="action" class="action"></div>
+  <p id="message" class="message"></p>
+</section>
+
+<section id="s-result">
+  <h2>Result</h2>
+  <ul id="checks" class="checklist"><li class="idle">Nothing checked yet.</li></ul>
+  <p id="pubkey" class="hint"></p>
+</section>
+
+<details id="log">
+  <summary>What was sent to the board</summary>
+  <pre id="log-text"></pre>
+</details>
+</main>
+<footer>
+  <p>Firmware from <a href="https://github.com/meshcore-dev/MeshCore/releases">MeshCore's releases</a>, checked against GitHub's published digest. Repeating is left off: turn it on in the field with <code>set repeat on</code> from the app's remote admin.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,42 @@
+# flasher.bxmesh.net: the MeshCore repeater flasher (this repo), a public page behind BxMesh's
+# Cloudflare tunnel. One pod serves the page, the firmware list and the checked firmware packages.
+# It holds nothing that matters: its cache of packages is fetched again from GitHub after a
+# restart. What the deployment needs is in the README (Deploying it).
+
+# The server (this repo's Dockerfile).
+image:
+  repository: ghcr.io/bxmesh/flasher.bxmesh.net
+  # The commit the image was built from. Written by CI on the pull request (O14); don't edit.
+  tag: ""
+
+# The pod. true: it runs once the owner syncs this chart in Argo CD (BxMesh never deploys itself,
+# O14), once the repo is in cluster-platform's enrolment list. false stops it; nothing else
+# depends on it.
+enabled: true
+
+# The page's public name. Web Serial works only in a secure context (HTTPS, or localhost): here
+# Cloudflare ends TLS in front of BxMesh's tunnel. external-dns-bxmesh writes the name from this
+# route. Empty: no route.
+hostname: flasher.bxmesh.net
+
+# BxMesh's gateway (O73), as corescope.bxmesh.net's routes use it.
+gateway:
+  name: bxmesh
+  namespace: platform-gateways
+  sectionName: http
+
+# The header Cloudflare puts each visitor's address in, for the per-visitor limits on the
+# firmware list and packages (flasher/server.py). Only Cloudflare's tunnel reaches the pod.
+clientIpHeader: CF-Connecting-IP
+
+# The pod reads https://api.github.com (the release list) and downloads from
+# https://github.com/meshcore-dev/MeshCore/releases/download/ (redirected to
+# release-assets.githubusercontent.com); it needs that egress and nothing else.
+
+# The cache of downloaded packages: about 350 KB each.
+cache:
+  sizeLimit: 64Mi
+
+resources:
+  requests: {cpu: 10m, memory: 32Mi}
+  limits: {cpu: 500m, memory: 128Mi}

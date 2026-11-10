@@ -1,0 +1,21 @@
+# flasher.bxmesh.net on BxMesh's gateway, behind its Cloudflare tunnel (Cloudflare ends TLS, which
+# Web Serial needs). external-dns-bxmesh writes the name from this route.
+{{- if .Values.hostname }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: flasher
+  labels:
+    {{- include "flasher.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
+      sectionName: {{ .Values.gateway.sectionName }}
+  hostnames:
+    - {{ .Values.hostname | quote }}
+  rules:
+    - backendRefs:
+        - name: flasher
+          port: 8080
+{{- end }}

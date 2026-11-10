@@ -1,0 +1,66 @@
+{
+  "about": "What the flasher sets on each repeater. Change it here, not in the code: the server reads it at start and the page gets it from /api/config (README: What it sets). Nothing here is secret. Admin identities are not here: each person adds their own in the page, kept in their own browser.",
+
+  "firmware": {
+    "about": "Where the firmware comes from: MeshCore's releases tagged repeater-vX.Y.Z, and in each the ProMicro repeater's DFU package (the .zip; the .uf2 is for drag-and-drop).",
+    "repo": "meshcore-dev/MeshCore",
+    "tagPattern": "^repeater-v(?P<version>\\d+\\.\\d+\\.\\d+)$",
+    "assetPattern": "^ProMicro_repeater-v(?P<version>\\d+\\.\\d+\\.\\d+)-[0-9a-f]{7,40}\\.zip$"
+  },
+
+  "board": {
+    "about": "The ProMicro nRF52840 (faketec). Its USB vendor is Adafruit's, 0x239A (MeshCore boards/promicro_nrf52840.json, hwids): the port picker shows only boards with it.",
+    "name": "ProMicro nRF52840 (faketec)",
+    "usbVendorId": 9114
+  },
+
+  "radio": {
+    "about": "The presets offered, in order; the first is the default. Australia (BxMesh) is the BxMesh mesh's settings, read from its companions (the same as MeshCore's Australia (Mid)). The rest are MeshCore's community presets (api.meshcore.nz/api/v1/config, read 11 November 2026; its deprecated ones left out). Each: MHz, kHz, spreading factor, coding rate 5-8 (4/5 to 4/8).",
+    "presets": [
+      {"label": "Australia (BxMesh)", "freq": 915.075, "bw": 125, "sf": 9, "cr": 5},
+      {"label": "Australia", "freq": 915.8, "bw": 250, "sf": 10, "cr": 5},
+      {"label": "Australia (Narrow)", "freq": 916.575, "bw": 62.5, "sf": 7, "cr": 7},
+      {"label": "Australia: SA, WA", "freq": 923.125, "bw": 62.5, "sf": 8, "cr": 8},
+      {"label": "Australia: QLD", "freq": 923.125, "bw": 62.5, "sf": 8, "cr": 5},
+      {"label": "New Zealand (Narrow)", "freq": 917.375, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "New Zealand (Gisborne)", "freq": 917.375, "bw": 250, "sf": 11, "cr": 5},
+      {"label": "USA", "freq": 910.525, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "USA - Southern California", "freq": 927.875, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "Canada", "freq": 910.525, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "Costa Rica", "freq": 910.525, "bw": 125, "sf": 11, "cr": 5},
+      {"label": "Brazil", "freq": 923.125, "bw": 62.5, "sf": 8, "cr": 8},
+      {"label": "Thailand", "freq": 921.0, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "Vietnam (Narrow)", "freq": 920.25, "bw": 62.5, "sf": 8, "cr": 5},
+      {"label": "EU/UK (Narrow)", "freq": 869.618, "bw": 62.5, "sf": 8, "cr": 8},
+      {"label": "EU 433MHz (Long Range)", "freq": 433.65, "bw": 250, "sf": 11, "cr": 5},
+      {"label": "EU 433MHz (Narrow)", "freq": 433.65, "bw": 62.5, "sf": 8, "cr": 8},
+      {"label": "Czech Republic (Narrow)", "freq": 869.432, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "Hungary", "freq": 869.618, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "Netherlands", "freq": 869.618, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "Netherlands (Limburg)", "freq": 869.618, "bw": 62.5, "sf": 8, "cr": 8},
+      {"label": "Portugal 433", "freq": 433.375, "bw": 62.5, "sf": 9, "cr": 6},
+      {"label": "Portugal 868", "freq": 869.618, "bw": 62.5, "sf": 7, "cr": 6},
+      {"label": "Slovakia", "freq": 869.618, "bw": 62.5, "sf": 7, "cr": 5},
+      {"label": "Switzerland", "freq": 869.618, "bw": 62.5, "sf": 8, "cr": 8}
+    ]
+  },
+
+  "regions": {
+    "about": "The tickboxes, in order. A region's parent is ticked with it. default and home are pre-selected.",
+    "list": [
+      {"name": "au", "parent": null, "label": "Australia", "ticked": true},
+      {"name": "au-nsw", "parent": "au", "label": "New South Wales", "ticked": true},
+      {"name": "au-nsw-bhs", "parent": "au-nsw", "label": "Bathurst", "ticked": false},
+      {"name": "au-nsw-dge", "parent": "au-nsw", "label": "Mudgee", "ticked": false}
+    ],
+    "default": "au-nsw",
+    "home": "au-nsw"
+  },
+
+  "guestPassword": "guest",
+
+  "pathHashMode": {
+    "about": "1: two-byte path hashes (a repeater sends path_hash_mode + 1 bytes per hop; MeshCore examples/simple_repeater/MyMesh.cpp).",
+    "value": 1
+  }
+}

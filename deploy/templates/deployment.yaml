@@ -1,0 +1,64 @@
+# The flasher's server, one pod. It holds nothing that matters (a cache of firmware packages, by
+# digest, in an emptyDir), so a restart loses nothing. Runs as nobody, read-only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flasher
+  labels:
+    {{- include "flasher.labels" . | nindent 4 }}
+spec:
+  replicas: {{ if .Values.enabled }}1{{ else }}0{{ end }}
+  selector:
+    matchLabels:
+      {{- include "flasher.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "flasher.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: flasher
+          image: {{ include "flasher.image" . | quote }}
+          {{- with .Values.clientIpHeader }}
+          env:
+            - name: FLASHER_CLIENT_IP_HEADER
+              value: {{ . | quote }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/flasher
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: cache
+          emptyDir:
+            sizeLimit: {{ .Values.cache.sizeLimit }}

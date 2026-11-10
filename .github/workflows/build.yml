@@ -1,0 +1,133 @@
+# Tests the page and the server, builds the image, pushes it to GHCR tagged with the commit SHA,
+# and commits the new tag into deploy/values.yaml on the pull request's own branch: the tag lands
+# with the edit that changed the app, staging the deployment (O14). Merging deploys it once the
+# owner syncs in Argo (BxMesh is always manual, O14). It never pushes to main. As
+# bxmesh/corescope.bxmesh.net's.
+#
+# GitHub-hosted runners: BxMesh's repos build there (T13). A fork's pull request is tested and
+# built without pushing or committing anything (its token is read-only).
+name: build
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # The page in headless Chromium against a fake board and a fake GitHub (tests/web), in
+  # Microsoft's Playwright image (its browsers), pinned by digest; the Python packages from
+  # requirements-test.txt, by hash. The same image ./run-page-tests uses.
+  page:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Test the page
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          pip install --quiet --break-system-packages --no-deps --require-hashes -r requirements-test.txt
+          python3 -m unittest discover -s tests/web -v
+
+  build:
+    needs: page
+    # Not for the tag commit this job pushes: it changes only deploy/values.yaml.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: write   # the tag commit on the pull request's branch
+      packages: write   # ghcr.io/bxmesh/...
+    env:
+      PUBLISH: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+      IMAGE: ghcr.io/bxmesh/flasher.bxmesh.net
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+    steps:
+      # The branch itself, not the merge commit: the image is built from the commit it's tagged
+      # with, and the tag commit goes on top of it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      # The image is pushed when what goes into it changed on this pull request, or when
+      # deploy/values.yaml has no tag yet. It's always built and tested.
+      - name: What to publish
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eu
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          tag=$(sed -n -E 's/^  tag: "?([^"]*)"?$/\1/p' deploy/values.yaml)
+          if [ -z "$tag" ] || ! git diff --quiet "$BASE"...HEAD -- flasher/ config/ Dockerfile .dockerignore; then
+            echo "image=true" >> "$GITHUB_OUTPUT"; echo "publish the image"
+          else
+            echo "image=false" >> "$GITHUB_OUTPUT"; echo "image unchanged, tag $tag"
+          fi
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.IMAGE }}:${{ steps.plan.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.plan.outputs.sha }}
+
+      # The server against a fake GitHub on 127.0.0.1 inside the container (tests/), with the
+      # image's own Python and user, and no network.
+      - name: Test the server, inside the image
+        env:
+          SHA: ${{ steps.plan.outputs.sha }}
+        run: |
+          docker run --rm --network none -v "$PWD/tests:/opt/flasher/tests:ro" \
+            -e HOME=/tmp --tmpfs /tmp --read-only \
+            --entrypoint python3 "$IMAGE:$SHA" -m unittest discover -s tests -v
+
+      - if: env.PUBLISH == 'true' && steps.plan.outputs.image == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6  # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        if: env.PUBLISH == 'true' && steps.plan.outputs.image == 'true'
+        env:
+          SHA: ${{ steps.plan.outputs.sha }}
+        run: docker push "$IMAGE:$SHA"
+
+      - name: Stage the tag in deploy/values.yaml
+        if: env.PUBLISH == 'true' && steps.plan.outputs.image == 'true'
+        env:
+          SHA: ${{ steps.plan.outputs.sha }}
+        run: |
+          set -eu
+          test "$(grep -c '^  tag: ' deploy/values.yaml)" = 1
+          sed -i -E "s|^  tag: .*|  tag: \"${SHA}\"|" deploy/values.yaml
+          git diff --quiet && { echo "nothing to stage"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "deploy: image at ${SHA:0:7}" deploy/values.yaml
+          git push origin "HEAD:${HEAD_REF}"

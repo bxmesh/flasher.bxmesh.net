@@ -1,0 +1,4 @@
+*
+!flasher/
+!config/flasher.json
+flasher/__pycache__

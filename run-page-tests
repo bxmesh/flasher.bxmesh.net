@@ -1,0 +1,15 @@
+#!/bin/sh
+# The page tests, in Microsoft's Playwright image (the same one CI uses): needs only Docker.
+# SCREENSHOTS=<dir> ./run-page-tests saves a screenshot of each step.
+set -eu
+IMAGE=mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031
+cd "$(dirname "$0")"
+SHOTS_MOUNT=""
+if [ -n "${SCREENSHOTS:-}" ]; then
+  mkdir -p "$SCREENSHOTS"
+  SHOTS_MOUNT="-v $(cd "$SCREENSHOTS" && pwd):/shots -e SCREENSHOTS=/shots"
+fi
+# shellcheck disable=SC2086
+exec docker run --rm --ipc=host -v "$PWD:/src:ro" $SHOTS_MOUNT -e PYTHONDONTWRITEBYTECODE=1 -w /src "$IMAGE" sh -c \
+  'pip install --quiet --break-system-packages --no-deps --require-hashes -r requirements-test.txt \
+   && python3 -m unittest discover -s tests/web -v'
