@@ -7,7 +7,7 @@
 image:
   repository: ghcr.io/bxmesh/flasher.bxmesh.net
   # The commit the image was built from. Written by CI on the pull request (O14); don't edit.
-  tag: ""
+  tag: "064fe3968cdb3c1a43e8a51ce3165c4488cdefcb"
 
 # The pod. true: it runs once the owner syncs this chart in Argo CD (BxMesh never deploys itself,
 # O14), once the repo is in cluster-platform's enrolment list. false stops it; nothing else
