@@ -152,8 +152,9 @@ Then open **http://localhost:8080** in Chrome or Edge. It listens on 127.0.0.1 o
 ## Deploying it
 
 The chart is in [`deploy/`](deploy/). CI (GitHub-hosted runners) writes the image tag into
-`deploy/values.yaml` on each pull request that changes the image, staging the deployment; it never
-deploys itself. On cluster-02 it needs:
+`deploy/values.yaml` on each pull request that changes the image, or while that file has no tag
+yet, staging the deployment; it never deploys itself. Until the first tag is written the chart
+doesn't render, so Argo has nothing to sync. On cluster-02 it needs:
 
 - **Its line in cluster-platform's enrolment list**, in the dmz zone, released by hand like every
   BxMesh repo (O14): Argo makes its namespace. The image, `ghcr.io/bxmesh/flasher.bxmesh.net`,
