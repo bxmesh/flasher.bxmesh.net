@@ -37,6 +37,7 @@ clientIpHeader: CF-Connecting-IP
 cache:
   sizeLimit: 64Mi
 
+# Memory request from its use over the 7 days to 24 November 2026: max 37 MiB, plus a fifth.
 resources:
-  requests: {cpu: 10m, memory: 32Mi}
+  requests: {cpu: 10m, memory: 48Mi}
   limits: {cpu: 500m, memory: 128Mi}
